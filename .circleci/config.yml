@@ -1,0 +1,87 @@
+version: 2
+
+
+jobs:
+  
+  build-backoffice:
+    docker:
+      - image: circleci/php:7.3-node-browsers
+    steps:
+      - checkout
+      - run: sudo apt update
+      - run: sudo docker-php-ext-install zip
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "composer.json" }}
+            - v1-dependencies-
+      - run: composer install -n --prefer-dist
+      - save_cache:
+          key: v1-dependencies-{{ checksum "composer.json" }}
+          paths:
+            - ./vendor
+
+  deploy-backoffice:
+    docker:
+      - image: circleci/php:7.3-node-browsers
+    steps:
+      - checkout
+      - add_ssh_keys:
+          fingerprints: [32:58:5d:6d:8f:05:ad:51:e5:91:c3:a5:49:8b:7a:80]
+      - attach_workspace:
+          at: ~/
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "composer.json" }}
+            - v1-dependencies-
+      - run:
+          name: Install dependencies
+          command: |
+            sudo apt update
+            sudo apt install zip -y
+            sudo apt install ansible -y
+            sudo apt install php-pgsql -y
+    # sudo phpenmod pdo_pgsql
+      - run:
+          name: Update ENV
+          command: |
+            echo APP_NAME=EMS > ".env"
+            echo APP_ENV=local >> ".env"
+            echo APP_KEY=base64:sPi+BcvDhGivqnRnuy/F5CQM9lYlAZIAycKQpOK6RTA= >> ".env"
+            echo APP_DEBUG=true >> ".env"
+            
+            echo APP_URL_BASE=$APP_URL_BASE >> ".env"
+            echo LOG_CHANNEL=stack >> ".env"
+
+            echo DB_CONNECTION=$DB_CONNECTION >> ".env"
+            echo DB_HOST=$DB_HOST >> ".env"
+            echo DB_PORT=$DB_PORT  >> ".env"
+            echo DB_DATABASE=$DB_DATABASE >> ".env"
+            echo DB_USERNAME=$DB_USERNAME >> ".env"
+            echo DB_PASSWORD=$DB_PASSWORD >> ".env"
+      - run:
+          name: Run migrations
+          command: |
+             php artisan migrate
+      - run:
+          name: Deploy to Server
+          command: |
+            zip -q -r EMS_BACKOFFICE_API.zip .
+            export ANSIBLE_HOST_KEY_CHECKING=False
+            ansible-playbook -i .circleci/ansible/inventory .circleci/ansible/deploy.yml
+
+
+  #run-backoffice-migrations:
+
+
+workflows:
+  version: 2
+  default:
+    jobs:
+      - build-backoffice:
+          filters:
+            branches:
+              only: 
+                - develop
+                - master
+      - deploy-backoffice:
+          requires: [build-backoffice]

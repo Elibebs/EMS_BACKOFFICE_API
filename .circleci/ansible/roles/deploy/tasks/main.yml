@@ -1,0 +1,13 @@
+---
+- name: Copy files from backend
+  become: true
+  copy:
+    src: ~/project/EMS_BACKOFFICE_API.zip
+    dest: /tmp
+
+- name: "unzip folder."
+  become: true
+  unarchive:
+    src: /tmp/EMS_BACKOFFICE_API.zip
+    dest: /home/ubuntu/EMS_BACKOFFICE_API
+    remote_src: yes
