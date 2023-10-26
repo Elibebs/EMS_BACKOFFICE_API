@@ -22,7 +22,9 @@ return [
         'allow_origins' => [
             'https://ws.maxitechgh.com',
             'https://mems.maxitechgh.com',
-            'https://qa.mems.maxitechgh.com'
+            'https://qa.mems.maxitechgh.com',
+            'https://api.mems.maxitechgh.com'
+
         ],
 
         'allow_methods' => [
